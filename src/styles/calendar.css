@@ -1,0 +1,126 @@
+/* Custom styles for react-calendar */
+
+.health-calendar {
+    background-color: white !important;
+    border: 1px solid #f5f6f7 !important;
+    border-radius: 8px !important;
+    font-family: inherit !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+}
+
+.health-calendar .react-calendar__navigation {
+    display: none !important;
+    /* Hide default navigation since we have custom header */
+}
+
+.health-calendar .react-calendar__month-view__weekdays {
+    background-color: white !important;
+    border-bottom: 1px solid #f5f6f7 !important;
+}
+
+.health-calendar .react-calendar__month-view__weekdays__weekday {
+    border: 1px solid #f5f6f7 !important;
+    padding: 8px 0 !important;
+    font-weight: bold !important;
+    color: #666 !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+}
+
+.health-calendar .react-calendar__month-view__weekdays__weekday abbr {
+    text-decoration: none !important;
+}
+
+.health-calendar .react-calendar__month-view__days {
+    border: 1px solid #f5f6f7 !important;
+}
+
+.health-calendar .react-calendar__tile abbr {
+    position: absolute !important;
+}
+
+.health-calendar .react-calendar__tile {
+    height: 122px !important;
+    /* width: 150px !important; */
+    border: none !important;
+    border-right: 1px solid #f5f6f7 !important;
+    border-bottom: 1px solid #f5f6f7 !important;
+    border-radius: 8px !important;
+    background-color: white !important;
+    display: flex !important;
+    align-items: end !important;
+    justify-content: end !important;
+    padding: 8px !important;
+    position: relative !important;
+    cursor: pointer !important;
+}
+
+.health-calendar .react-calendar__tile:hover {
+    background-color: #f5f5f5 !important;
+}
+
+.health-calendar .react-calendar__tile--active {
+    border: 1px solid #2ab3a3 !important;
+    background-color: transparent !important;
+    color: #2ab3a3 !important;
+}
+
+.health-calendar .react-calendar__tile--active:hover {
+    background-color: transparent !important;
+}
+
+.health-calendar .react-calendar__tile--neighboringMonth {
+    color: #999 !important;
+}
+
+.health-calendar .react-calendar__tile--neighboringMonth:hover {
+    background-color: #f5f5f5 !important;
+}
+
+
+/* Remove default margins and paddings */
+
+.health-calendar * {
+    margin: 0 !important;
+}
+
+.health-calendar .react-calendar__tile {
+    margin: 0 !important;
+    padding: 8px !important;
+}
+
+
+/* Single date selection styles */
+
+.health-calendar .selected-tile {
+    background-color: rgba(42, 179, 163, 0.1) !important;
+    position: relative !important;
+    color: #2ab3a3 !important;
+    font-weight: bold !important;
+    border: 2px solid #2ab3a3 !important;
+    border-radius: 4px !important;
+    margin: 0 !important;
+}
+
+.health-calendar .selected-tile:hover {
+    background-color: rgba(42, 179, 163, 0.15) !important;
+}
+
+
+/* Override the default active state for selected dates */
+
+.health-calendar .selected-tile.react-calendar__tile--active {
+    background-color: rgba(42, 179, 163, 0.1) !important;
+    color: #2ab3a3 !important;
+}
+
+@media screen and (max-width: 765px) {
+    .health-calendar .react-calendar__tile {
+        height: 100px !important;
+    }
+}
