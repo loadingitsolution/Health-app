@@ -69,12 +69,12 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <Box
       sx={{
-        height: "100vh",
+        height: "100dvh",
         display: "flex",
         flexDirection: "column",
         backgroundColor: "#F7F8FA",
         position: "relative",
-        paddingBottom: isSmallScreen ? "80px" : 0, // Add bottom padding for mobile to account for bottom tabs
+        // paddingBottom: isSmallScreen ? "80px" : 0,
       }}
     >
       {/* Header - Always visible at top */}
@@ -269,7 +269,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
           // Mobile positioning (bottom center)
           ...(isSmallScreen
             ? {
-                bottom: "8px",
+                bottom: "14px",
                 height: "56px",
                 left: "138px",
                 transform: "translateX(-50%)",
@@ -356,7 +356,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
         <Box
           sx={{
             position: "absolute",
-            bottom: "8px",
+            bottom: "14px",
             right: "20px",
             zIndex: 10,
           }}

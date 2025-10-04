@@ -36,7 +36,7 @@ export const InputBar = ({ onSendMessage }: InputBarProps) => {
     >
       <Box
         sx={{
-          width: { xs: "90%", sm: "80%", md: "70%", lg: "1110px" },
+          width: { xs: "100%", sm: "100%", md: "100%", lg: "1110px" },
           maxWidth: "1110px",
           display: "flex",
           alignItems: "center",

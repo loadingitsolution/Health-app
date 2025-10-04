@@ -19,7 +19,7 @@ export const components = {
 
       body: {
         backgroundColor: "#FFF",
-        minHeight: "100vh",
+        minHeight: "100dvh",
       },
     },
   },

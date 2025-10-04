@@ -218,38 +218,40 @@ export const HealthChat = () => {
           display: "flex",
           borderRadius: "12px",
           overflow: "hidden",
-          justifyContent: "center",
+          justifyContent: isSmallScreen ? "flex-start" : "center",
+          flexDirection: "column",
         }}
       >
-        {hasFirstMessage && (
-          <Box sx={{ maxWidth: "1200px", margin: "auto", width: "100%" }}>
-            {/* Title and Subtitle Section */}
+        {/* Title and Subtitle Section */}
+        <Box sx={{ maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              py: 2,
+              px: 2,
+              borderRadius: "12px",
+            }}
+          >
             <Box
+              onClick={handleCalendarClick}
               sx={{
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                py: 2,
-                px: 2,
-                borderRadius: "12px",
+                gap: 2,
+                cursor: "pointer",
+                flex: 1,
+                "&:hover": {
+                  opacity: 0.8,
+                },
               }}
             >
-              <Box
-                onClick={handleCalendarClick}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  cursor: "pointer",
-                  flex: 1,
-                  "&:hover": {
-                    opacity: 0.8,
-                  },
-                }}
-              >
-                <IconButton onClick={handleCalendarClick}>
-                  <CalendarIcon />
-                </IconButton>
+              <IconButton onClick={handleCalendarClick}>
+                <CalendarIcon />
+              </IconButton>
+
+              {hasFirstMessage && (
                 <Box sx={{ textAlign: "center", flex: 1 }}>
                   <Typography
                     variant="h5"
@@ -262,46 +264,50 @@ export const HealthChat = () => {
                     wellness.
                   </Typography>
                 </Box>
-              </Box>
+              )}
+            </Box>
 
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                {!isSmallScreen && (
-                  <Button
-                    variant="text"
-                    startIcon={<Upload fontSize="small" />}
-                    onClick={handleShareClick}
-                    sx={{
-                      color: "#666",
-                      textTransform: "none",
-                      fontSize: "14px",
-                      backgroundColor: "transparent",
-                      minWidth: "auto",
-                      lineHeight: "normal",
-                      px: 1,
-                      "&:hover": {
-                        backgroundColor: "transparent",
-                      },
-                    }}
-                  >
-                    Share
-                  </Button>
-                )}
-                <IconButton
-                  onClick={handleMenuClick}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              {!isSmallScreen && (
+                <Button
+                  variant="text"
+                  startIcon={<Upload fontSize="small" />}
+                  onClick={handleShareClick}
                   sx={{
-                    p: 0.5,
-                    backgroundColor: "#F1F3F7",
-                    borderRadius: "8px",
+                    color: "#666",
+                    textTransform: "none",
+                    fontSize: "14px",
+                    backgroundColor: "transparent",
+                    minWidth: "auto",
+                    lineHeight: "normal",
+                    px: 1,
                     "&:hover": {
-                      backgroundColor: "#E5E7EB",
+                      backgroundColor: "transparent",
                     },
                   }}
                 >
-                  <MoreVert fontSize="small" sx={{ color: "#6B7A99" }} />
-                </IconButton>
-              </Box>
+                  Share
+                </Button>
+              )}
+              <IconButton
+                onClick={handleMenuClick}
+                sx={{
+                  p: 0.5,
+                  backgroundColor: "#F1F3F7",
+                  borderRadius: "8px",
+                  "&:hover": {
+                    backgroundColor: "#E5E7EB",
+                  },
+                }}
+              >
+                <MoreVert fontSize="small" sx={{ color: "#6B7A99" }} />
+              </IconButton>
             </Box>
+          </Box>
+        </Box>
 
+        {hasFirstMessage && (
+          <Box sx={{ maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
             {/* Vertical Menu Dropdown for main content */}
             <Menu
               anchorEl={menuAnchorEl}
@@ -336,7 +342,14 @@ export const HealthChat = () => {
               <MenuItem onClick={handleReportClick}>Report Issue</MenuItem>
             </Menu>
 
-            <Box sx={{ height: "calc(100vh - 272px)", overflow: "auto" }}>
+            <Box
+              sx={{
+                height: isSmallScreen
+                  ? "calc(100dvh - 355px)"
+                  : "calc(100dvh - 272px)",
+                overflow: "auto",
+              }}
+            >
               {/* Selection Bar */}
               {selectedMessages.length > 0 && (
                 <Box
@@ -466,6 +479,7 @@ export const HealthChat = () => {
               justifyContent: "center",
               height: "100%",
               gap: 4,
+              paddingBottom: isSmallScreen ? "80px" : "0",
             }}
           >
             {/* Title and Subtitle Section */}

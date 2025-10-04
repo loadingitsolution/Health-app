@@ -303,7 +303,7 @@ export const HealthCalendar = () => {
           backgroundColor: "#F7F8FA",
           borderRadius: "12px",
           overflow: "hidden",
-          // height: "calc(100vh - 120px)",
+          // justifyContent: isSmallScreen ? "center" : "flex-start",
         }}
       >
         <Box
@@ -513,9 +513,8 @@ export const HealthCalendar = () => {
                         </Box>
 
                         {/* Edit Icon - Opens modal when no data, drawer when data exists */}
-                        <IconButton
+                        <Box
                           className="edit-icon"
-                          size="small"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedDate(date);
@@ -538,10 +537,20 @@ export const HealthCalendar = () => {
                             left: 2,
                             opacity: 0,
                             transition: "opacity 0.2s",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "24px",
+                            height: "24px",
+                            borderRadius: "50%",
+                            "&:hover": {
+                              backgroundColor: "rgba(0, 0, 0, 0.1)",
+                            },
                           }}
                         >
                           <QuickEditSvg />
-                        </IconButton>
+                        </Box>
                       </Box>
                     );
                   }
@@ -1145,18 +1154,40 @@ export const HealthCalendar = () => {
                         {reminder.title}
                       </Typography>
                       <Box sx={{ display: "flex", gap: 1 }}>
-                        <IconButton
-                          size="small"
+                        <Box
                           onClick={() => handleEditReminder()}
+                          sx={{
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "50%",
+                            "&:hover": {
+                              backgroundColor: "rgba(0, 0, 0, 0.1)",
+                            },
+                          }}
                         >
                           <QuickEditSvg />
-                        </IconButton>
-                        <IconButton
-                          size="small"
+                        </Box>
+                        <Box
                           onClick={() => handleDeleteReminder(reminder.id)}
+                          sx={{
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "50%",
+                            "&:hover": {
+                              backgroundColor: "rgba(0, 0, 0, 0.1)",
+                            },
+                          }}
                         >
                           <DeleteIconWithBackground />
-                        </IconButton>
+                        </Box>
                       </Box>
                     </Box>
 

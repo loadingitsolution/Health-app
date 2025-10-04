@@ -38,6 +38,7 @@
 
 .health-calendar .react-calendar__month-view__days {
     border: 1px solid #f5f6f7 !important;
+    height: calc(100dvh - 315px);
 }
 
 .health-calendar .react-calendar__tile abbr {
@@ -120,7 +121,21 @@
 }
 
 @media screen and (max-width: 765px) {
+    .health-calendar {
+        height: calc(100dvh - 321px) !important;
+        min-height: calc(100dvh - 321px) !important;
+    }
     .health-calendar .react-calendar__tile {
-        height: 100px !important;
+        height: 90px !important;
+        min-height: 90px !important;
+        font-size: 12px !important;
+    }
+    .health-calendar .react-calendar__month-view__days {
+        height: 100% !important;
+    }
+    .health-calendar .react-calendar__month-view__weekdays__weekday {
+        height: 32px !important;
+        font-size: 11px !important;
+        padding: 4px 0 !important;
     }
 }
