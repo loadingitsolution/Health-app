@@ -10,17 +10,22 @@ import {
   Checkbox,
   Divider,
   Drawer,
+  Grid,
   IconButton,
   List,
   ListItem,
-  Menu,
   Paper,
   Switch,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
   useMediaQuery,
 } from "@mui/material";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
@@ -28,13 +33,12 @@ import {
   DeleteIconWithBackground,
   QuickEditSvg,
   RemainderTooltipSvg,
-  ReminderSvg,
-  SymptomSvg,
   SymptomTooltipSvg,
 } from "../assets";
 import { CustomModal } from "../components";
 import { InputBar } from "../components/chat/InputBar";
 import { MainLayout } from "../layout/MainLayout";
+import { tabsWrapper, TitleWithIcon } from "../styleConstant";
 import "../styles/calendar.css";
 
 export const HealthCalendar = () => {
@@ -50,18 +54,16 @@ export const HealthCalendar = () => {
       timestamp: string;
     }>
   >([]);
-  const [plusMenuAnchor, setPlusMenuAnchor] = useState<null | HTMLElement>(
-    null
-  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<
-    "symptom" | "reminder" | "quick-edit" | null
+    "symptom" | "reminder" | "quick-edit" | "health-log" | null
   >(null);
   const [periodSwitch, setPeriodSwitch] = useState(false);
   const [selectedFlowVolume, setSelectedFlowVolume] = useState<string | null>(
     null
   );
   const [selectedMoodTags, setSelectedMoodTags] = useState<string[]>([]);
+  const [modalSelectedDate, setModalSelectedDate] = useState<Date | null>(null);
   const [calendarData, setCalendarData] = useState<{
     [key: string]: {
       quickEdit?: {
@@ -73,43 +75,47 @@ export const HealthCalendar = () => {
       reminders?: Array<{
         id: string;
         title: string;
+        reminderType?: string;
         time: string;
+        description: string;
+        completed: boolean;
+      }>;
+      symptoms?: Array<{
+        id: string;
+        title: string;
+        symptomType?: string;
         description: string;
         completed: boolean;
       }>;
     };
   }>({});
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
-  const plusMenuOpen = Boolean(plusMenuAnchor);
+  const [activeTab, setActiveTab] = useState<"reminders" | "symptoms">(
+    "reminders"
+  );
 
-  const handlePlusClick = (event: React.MouseEvent<HTMLElement>) => {
-    setPlusMenuAnchor(event.currentTarget);
-  };
-
-  const handlePlusClose = () => {
-    setPlusMenuAnchor(null);
-  };
-
-  const handleSymptomClick = () => {
-    setModalType("symptom");
+  const handlePlusClick = () => {
+    setActiveTab("reminders");
+    setModalType("health-log");
+    setModalSelectedDate(null); // Reset modal date so user can select
     setIsModalOpen(true);
-    handlePlusClose();
-  };
-
-  const handleReminderClick = () => {
-    setModalType("reminder");
-    setIsModalOpen(true);
-    handlePlusClose();
   };
 
   const handleModalClose = () => {
     setIsModalOpen(false);
     setModalType(null);
+    setModalSelectedDate(null);
+    setSelectedDate(null);
+    setPeriodSwitch(false);
+    setSelectedFlowVolume(null);
+    setSelectedMoodTags([]);
   };
 
   const handleModalSave = () => {
-    if (selectedDate) {
-      const dateKey = selectedDate.toISOString().split("T")[0];
+    const dateToUse = modalSelectedDate || selectedDate;
+    if (dateToUse) {
+      // Create date key in local timezone format (YYYY-MM-DD)
+      const dateKey = formatDateForInput(dateToUse);
 
       if (modalType === "quick-edit") {
         setCalendarData((prev) => ({
@@ -138,6 +144,32 @@ export const HealthCalendar = () => {
             reminder: "Reminder set",
           },
         }));
+      } else if (modalType === "health-log") {
+        if (activeTab === "symptoms") {
+          setCalendarData((prev) => ({
+            ...prev,
+            [dateKey]: {
+              ...prev[dateKey],
+              symptom: "Symptom recorded",
+              quickEdit: {
+                flowVolume: selectedFlowVolume,
+                moodTags: selectedMoodTags,
+              },
+            },
+          }));
+        } else if (activeTab === "reminders") {
+          setCalendarData((prev) => ({
+            ...prev,
+            [dateKey]: {
+              ...prev[dateKey],
+              reminder: "Reminder set",
+              quickEdit: {
+                flowVolume: selectedFlowVolume,
+                moodTags: selectedMoodTags,
+              },
+            },
+          }));
+        }
       }
     }
     console.log(`${modalType} saved`);
@@ -147,24 +179,6 @@ export const HealthCalendar = () => {
   const handleModalCancel = () => {
     console.log(`${modalType} cancelled`);
     handleModalClose();
-  };
-
-  const handleQuickEditOpen = () => {
-    if (selectedDate) {
-      const dateKey = selectedDate.toISOString().split("T")[0];
-      const dayData = calendarData[dateKey];
-
-      // Load existing data if available
-      if (dayData?.quickEdit) {
-        setSelectedFlowVolume(dayData.quickEdit.flowVolume || null);
-        setSelectedMoodTags(dayData.quickEdit.moodTags || []);
-      } else {
-        setSelectedFlowVolume(null);
-        setSelectedMoodTags([]);
-      }
-    }
-    setIsModalOpen(true);
-    setModalType("quick-edit");
   };
 
   const handleQuickEditClose = () => {
@@ -183,28 +197,100 @@ export const HealthCalendar = () => {
     setSelectedMoodTags([tag]); // Only allow one mood selection at a time
   };
 
+  const handleTabChange = (
+    _event: React.SyntheticEvent,
+    newValue: "reminders" | "symptoms"
+  ) => {
+    setActiveTab(newValue);
+  };
+
+  // Helper function to format date for input field (YYYY-MM-DD)
+  const formatDateForInput = (date: Date | null): string => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const handleEditDrawerOpen = () => {
     if (selectedDate) {
-      const dateKey = selectedDate.toISOString().split("T")[0];
+      const dateKey = formatDateForInput(selectedDate);
       const dayData = calendarData[dateKey];
 
-      // Initialize with sample data if no reminders exist
+      // Initialize with sample data if no data exists
       if (!dayData?.reminders || dayData.reminders.length === 0) {
         const sampleReminders = [
           {
             id: "1",
             title: "First Reminder",
-            time: "9:00 AM",
-            description:
-              "💊 Take Iron Supplement — 9:00 AM\n🥗 Lunch: High-protein meal suggestion\n💧 Drink 8 glasses of water\n🩺 Track symptoms (headache, fatigue)",
+            reminderType: "Medication Reminder",
+            time: "8:00 AM",
+            description: "Take iron supplement with breakfast",
             completed: false,
           },
           {
             id: "2",
             title: "Second Reminder",
-            time: "9:00 AM",
+            reminderType: "Hydration Reminder",
+            time: "3:00 PM",
+            description: "Drink 2 glasses of water to stay hydrated",
+            completed: false,
+          },
+          {
+            id: "3",
+            title: "Third Reminder",
+            reminderType: "Exercise Reminder",
+            time: "6:00 PM",
+            description: "30 minutes of light exercise or walking",
+            completed: false,
+          },
+          {
+            id: "4",
+            title: "Fourth Reminder",
+            reminderType: "Evening Medication",
+            time: "9:00 PM",
+            description: "Take calcium supplement before bed",
+            completed: false,
+          },
+        ];
+
+        const sampleSymptoms = [
+          {
+            id: "1",
+            title: "First Symptom",
+            symptomType: "Headache",
             description:
-              "💊 Take Iron Supplement — 9:00 AM\n🥗 Lunch: High-protein meal suggestion\n💧 Drink 8 glasses of water\n🩺 Track symptoms (headache, fatigue)",
+              "Mild headache since morning, lasted 2 hours. Took ibuprofen.",
+            completed: false,
+          },
+          {
+            id: "2",
+            title: "Second Symptom",
+            symptomType: "Cramps",
+            description:
+              "Lower abdominal cramps, pain level: medium. Used heating pad.",
+            completed: false,
+          },
+          {
+            id: "3",
+            title: "Third Symptom",
+            symptomType: "Fatigue",
+            description: "Feeling tired and low energy throughout the day",
+            completed: false,
+          },
+          {
+            id: "4",
+            title: "Fourth Symptom",
+            symptomType: "Mood Changes",
+            description: "Feeling more irritable than usual, mood swings",
+            completed: false,
+          },
+          {
+            id: "5",
+            title: "Fifth Symptom",
+            symptomType: "Bloating",
+            description: "Mild bloating and discomfort in the afternoon",
             completed: false,
           },
         ];
@@ -214,6 +300,7 @@ export const HealthCalendar = () => {
           [dateKey]: {
             ...prev[dateKey],
             reminders: sampleReminders,
+            symptoms: sampleSymptoms,
           },
         }));
       }
@@ -226,20 +313,36 @@ export const HealthCalendar = () => {
   };
 
   const handleEditReminder = () => {
-    setModalType("reminder");
+    setActiveTab("reminders");
+    setModalType("health-log");
+    setModalSelectedDate(selectedDate);
     setIsModalOpen(true);
     setIsEditDrawerOpen(false);
   };
 
   const handleDeleteReminder = (reminderId: string) => {
     if (selectedDate) {
-      const dateKey = selectedDate.toISOString().split("T")[0];
+      const dateKey = formatDateForInput(selectedDate);
       setCalendarData((prev) => ({
         ...prev,
         [dateKey]: {
           ...prev[dateKey],
           reminders:
             prev[dateKey]?.reminders?.filter((r) => r.id !== reminderId) || [],
+        },
+      }));
+    }
+  };
+
+  const handleDeleteSymptom = (symptomId: string) => {
+    if (selectedDate) {
+      const dateKey = formatDateForInput(selectedDate);
+      setCalendarData((prev) => ({
+        ...prev,
+        [dateKey]: {
+          ...prev[dateKey],
+          symptoms:
+            prev[dateKey]?.symptoms?.filter((s) => s.id !== symptomId) || [],
         },
       }));
     }
@@ -269,6 +372,26 @@ export const HealthCalendar = () => {
   const handleDateChange = (value: any) => {
     if (value instanceof Date) {
       setSelectedDate(value);
+      // Check if there's existing data for this date
+      const dateKey = formatDateForInput(value);
+      const dayData = calendarData[dateKey];
+
+      if (
+        dayData &&
+        (dayData.quickEdit ||
+          dayData.symptom ||
+          dayData.reminder ||
+          dayData.reminders)
+      ) {
+        // If data exists, open drawer
+        handleEditDrawerOpen();
+      } else {
+        // If no data exists, open modal for adding new data
+        setModalSelectedDate(value);
+        setActiveTab("reminders");
+        setModalType("health-log");
+        setIsModalOpen(true);
+      }
     }
   };
 
@@ -303,7 +426,6 @@ export const HealthCalendar = () => {
           backgroundColor: "#F7F8FA",
           borderRadius: "12px",
           overflow: "hidden",
-          // justifyContent: isSmallScreen ? "center" : "flex-start",
         }}
       >
         <Box
@@ -378,15 +500,14 @@ export const HealthCalendar = () => {
               </Box>
 
               <IconButton
-                disabled={!selectedDate}
                 onClick={handlePlusClick}
                 sx={{
-                  backgroundColor: selectedDate ? "#2AB3A3" : "#E0E0E0",
-                  color: selectedDate ? "white" : "#999",
+                  backgroundColor: "#2AB3A3",
+                  color: "white",
                   width: "48px",
                   height: "48px",
                   "&:hover": {
-                    backgroundColor: selectedDate ? "#1e8a7a" : "#E0E0E0",
+                    backgroundColor: "#1e8a7a",
                   },
                 }}
               >
@@ -412,7 +533,7 @@ export const HealthCalendar = () => {
                 }}
                 tileContent={({ date, view }) => {
                   if (view === "month") {
-                    const dateKey = date.toISOString().split("T")[0];
+                    const dateKey = formatDateForInput(date);
                     const dayData = calendarData[dateKey];
 
                     return (
@@ -512,24 +633,16 @@ export const HealthCalendar = () => {
                           )}
                         </Box>
 
-                        {/* Edit Icon - Opens modal when no data, drawer when data exists */}
+                        {/* Edit Icon - Always opens modal */}
                         <Box
                           className="edit-icon"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedDate(date);
-                            // Check if there's existing data
-                            if (
-                              dayData &&
-                              (dayData.quickEdit ||
-                                dayData.symptom ||
-                                dayData.reminder ||
-                                dayData.reminders)
-                            ) {
-                              handleEditDrawerOpen();
-                            } else {
-                              handleQuickEditOpen();
-                            }
+                            setModalSelectedDate(date);
+                            setActiveTab("reminders");
+                            setModalType("health-log");
+                            setIsModalOpen(true);
                           }}
                           sx={{
                             position: "absolute",
@@ -589,84 +702,6 @@ export const HealthCalendar = () => {
               </Button>
             </Box>
           </Box>
-
-          {/* Plus Button Dropdown Menu */}
-          <Menu
-            anchorEl={plusMenuAnchor}
-            open={plusMenuOpen}
-            onClose={handlePlusClose}
-            PaperProps={{
-              sx: {
-                mt: 1,
-                minWidth: 200,
-                borderRadius: "12px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                backgroundColor: "white",
-                "& .MuiMenuItem-root": {
-                  color: "#333",
-                  fontWeight: 500,
-                  fontSize: "14px",
-                  lineHeight: "20px",
-                  padding: "12px 16px",
-                  "&:hover": {
-                    backgroundColor: "#f5f5f5",
-                  },
-                },
-              },
-            }}
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "center",
-            }}
-            anchorOrigin={{
-              vertical: "bottom",
-              horizontal: "center",
-            }}
-          >
-            <Box sx={{ p: 1 }}>
-              <Button
-                onClick={handleSymptomClick}
-                fullWidth
-                startIcon={<SymptomSvg />}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  backgroundColor: "#2AB3A3",
-                  color: "white",
-                  borderRadius: "8px",
-                  padding: "12px 16px",
-                  textTransform: "none",
-                  fontWeight: 500,
-                  fontSize: "14px",
-                }}
-              >
-                Symptom
-              </Button>
-            </Box>
-
-            <Box sx={{ p: 1, pt: 0 }}>
-              <Button
-                onClick={handleReminderClick}
-                fullWidth
-                startIcon={<ReminderSvg />}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  backgroundColor: "#2AB3A3",
-                  color: "white",
-                  borderRadius: "8px",
-                  padding: "12px 16px",
-                  textTransform: "none",
-                  fontWeight: 500,
-                  fontSize: "14px",
-                }}
-              >
-                Reminder
-              </Button>
-            </Box>
-          </Menu>
 
           {/* Chat Interface */}
           {!isSmallScreen && (
@@ -1078,6 +1113,322 @@ export const HealthCalendar = () => {
         </Box>
       </CustomModal>
 
+      {/* Health Log Modal */}
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <CustomModal
+          isOpen={isModalOpen && modalType === "health-log"}
+          onClose={handleModalClose}
+          title="Health Log"
+          onSave={handleModalSave}
+          onCancel={handleModalCancel}
+          saveButtonText="Save"
+          cancelButtonText="Cancel"
+          maxWidth="md"
+        >
+          <Box sx={{ minHeight: "400px" }}>
+            {/* Date Selection */}
+            <Box sx={{ pb: 2 }}>
+              <DatePicker
+                label="Select Date"
+                value={modalSelectedDate || selectedDate}
+                onChange={(newValue) => {
+                  setModalSelectedDate(newValue);
+                }}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    placeholder: "Select a date",
+                  },
+                }}
+              />
+            </Box>
+
+            {/* Tabs - Full Width */}
+            <Box sx={tabsWrapper}>
+              <Tabs
+                value={activeTab}
+                onChange={handleTabChange}
+                variant="fullWidth"
+              >
+                <Tab label="Reminders" value="reminders" />
+                <Tab label="Symptoms" value="symptoms" />
+              </Tabs>
+            </Box>
+
+            {/* Tab Content - Same content for both tabs */}
+            <Box>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      sx={{ mb: 1, color: "#333", fontWeight: 600 }}
+                    >
+                      Description*
+                    </Typography>
+                    <TextField
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          height: "auto",
+                          backgroundColor: "white",
+                        },
+                      }}
+                      fullWidth
+                      multiline
+                      rows={4}
+                      variant="outlined"
+                      placeholder="Write your note or details here..."
+                    />
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box mb={1}>
+                    <Typography
+                      variant="h6"
+                      sx={{ mb: 1, color: "#333", fontWeight: 600 }}
+                    >
+                      Time
+                    </Typography>
+                    <TextField
+                      type="time"
+                      fullWidth
+                      variant="outlined"
+                      placeholder="--:-- --"
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          height: "auto",
+                          backgroundColor: "white",
+                          borderRadius: "8px",
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    gap={2}
+                  >
+                    <Typography
+                      variant="h6"
+                      sx={{ color: "#333", fontWeight: 600 }}
+                    >
+                      Repeat rules
+                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <Switch
+                        color="primary"
+                        sx={{
+                          "& .MuiSwitch-switchBase.Mui-checked": {
+                            color: "#2AB3A3",
+                          },
+                          "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
+                            {
+                              backgroundColor: "#2AB3A3",
+                            },
+                        }}
+                      />
+                    </Box>
+                  </Box>
+
+                  <Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Checkbox
+                        sx={{
+                          color: "#2AB3A3",
+                          padding: 0,
+                          "&.Mui-checked": {
+                            color: "#2AB3A3",
+                          },
+                        }}
+                      />
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: "#333",
+                          fontWeight: 500,
+                          fontSize: "14px",
+                        }}
+                      >
+                        Mark as completed
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {/* Period Tracking Section - After buttons */}
+              <Box pt={1}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 3,
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    sx={{ color: "#333", fontWeight: 600 }}
+                  >
+                    Did your period come today?
+                  </Typography>
+                  <Switch
+                    checked={periodSwitch}
+                    onChange={(e) => setPeriodSwitch(e.target.checked)}
+                    sx={{
+                      "& .MuiSwitch-switchBase.Mui-checked": {
+                        color: "#2AB3A3",
+                      },
+                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
+                        {
+                          backgroundColor: "#2AB3A3",
+                        },
+                    }}
+                  />
+                </Box>
+
+                {/* Flow Volume Section */}
+                <Box
+                  sx={{
+                    mb: 3,
+                    opacity: periodSwitch ? 1 : 0.5,
+                    pointerEvents: periodSwitch ? "auto" : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: isSmallScreen ? "wrap" : "nowrap",
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    sx={{ mb: 2, color: "#333", fontWeight: 600 }}
+                  >
+                    Flow Volume:
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {[
+                      { name: "Light", color: "#4A90E2" },
+                      { name: "Medium", color: "#F4C542" },
+                      { name: "High", color: "#FF6F61" },
+                    ].map((volume) => (
+                      <Button
+                        key={volume.name}
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleFlowVolumeSelect(volume.name)}
+                        sx={{
+                          borderRadius: "20px",
+                          textTransform: "none",
+                          borderColor: volume.color,
+                          color:
+                            selectedFlowVolume === volume.name
+                              ? "white"
+                              : volume.color,
+                          backgroundColor:
+                            selectedFlowVolume === volume.name
+                              ? volume.color
+                              : "white",
+                          "&:hover": {
+                            borderColor: volume.color,
+                            color:
+                              selectedFlowVolume === volume.name
+                                ? "white"
+                                : volume.color,
+                            backgroundColor:
+                              selectedFlowVolume === volume.name
+                                ? volume.color
+                                : `${volume.color}20`,
+                          },
+                          minWidth: "80px",
+                        }}
+                      >
+                        {volume.name}
+                      </Button>
+                    ))}
+                  </Box>
+                </Box>
+
+                {/* Mood Tags Section */}
+                <Box
+                  sx={{
+                    mb: 3,
+                    opacity: periodSwitch ? 1 : 0.5,
+                    pointerEvents: periodSwitch ? "auto" : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: isSmallScreen ? "wrap" : "nowrap",
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    sx={{ mb: 2, color: "#333", fontWeight: 600 }}
+                  >
+                    Mood Tags:
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {[
+                      { emoji: "😊", text: "Happy", color: "#2AB3A3" },
+                      { emoji: "🧘‍♂️", text: "Calm", color: "#8DC63F" },
+                      { emoji: "😟", text: "Anxious", color: "#4A90E2" },
+                      { emoji: "😠", text: "Irritable", color: "#F4C542" },
+                      { emoji: "😔", text: "Low", color: "#FF6F61" },
+                    ].map((mood) => (
+                      <Button
+                        key={mood.text}
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleMoodTagToggle(mood.text)}
+                        sx={{
+                          borderRadius: "20px",
+                          textTransform: "none",
+                          borderColor: mood.color,
+                          color: selectedMoodTags.includes(mood.text)
+                            ? "white"
+                            : mood.color,
+                          backgroundColor: selectedMoodTags.includes(mood.text)
+                            ? mood.color
+                            : "white",
+                          "&:hover": {
+                            borderColor: mood.color,
+                            color: selectedMoodTags.includes(mood.text)
+                              ? "white"
+                              : mood.color,
+                            backgroundColor: selectedMoodTags.includes(
+                              mood.text
+                            )
+                              ? mood.color
+                              : `${mood.color}20`,
+                          },
+                          minWidth: "100px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {mood.emoji} {mood.text}
+                      </Button>
+                    ))}
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        </CustomModal>
+      </LocalizationProvider>
+
       {/* Edit Drawer */}
       <Drawer
         anchor="right"
@@ -1106,7 +1457,7 @@ export const HealthCalendar = () => {
                 color: "#6B7A99",
               }}
             >
-              Reminders for
+              Existing Records for{" "}
               {selectedDate?.toLocaleDateString("en-US", {
                 month: "long",
                 day: "numeric",
@@ -1119,97 +1470,369 @@ export const HealthCalendar = () => {
           </Box>
 
           {selectedDate && (
-            <List sx={{ width: "100%" }}>
-              {calendarData[
-                selectedDate.toISOString().split("T")[0]
-              ]?.reminders?.map((reminder, index) => (
-                <Box key={reminder.id}>
-                  <ListItem
-                    sx={{
-                      backgroundColor: "transparent",
-                      borderRadius: "12px",
-                      mb: 2,
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      p: 2,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        width: "100%",
-                        mb: 1,
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
+            <Box>
+              {/* Reminders Section */}
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    ...TitleWithIcon,
+                    fontWeight: "bold",
+                    color: "#333",
+                    mb: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <RemainderTooltipSvg /> Reminders
+                </Typography>
+
+                <List sx={{ width: "100%" }}>
+                  {calendarData[
+                    formatDateForInput(selectedDate)
+                  ]?.reminders?.map((reminder, index) => (
+                    <Box key={reminder.id}>
+                      <ListItem
                         sx={{
-                          fontWeight: "bold",
-                          color: "#333",
-                          fontSize: "16px",
+                          backgroundColor: "transparent",
+                          mb: 2,
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          p: 0,
                         }}
                       >
-                        {reminder.title}
-                      </Typography>
-                      <Box sx={{ display: "flex", gap: 1 }}>
                         <Box
-                          onClick={() => handleEditReminder()}
                           sx={{
-                            cursor: "pointer",
                             display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: "32px",
-                            height: "32px",
-                            borderRadius: "50%",
-                            "&:hover": {
-                              backgroundColor: "rgba(0, 0, 0, 0.1)",
-                            },
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            width: "100%",
+                            mb: 1,
                           }}
                         >
-                          <QuickEditSvg />
-                        </Box>
-                        <Box
-                          onClick={() => handleDeleteReminder(reminder.id)}
-                          sx={{
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: "32px",
-                            height: "32px",
-                            borderRadius: "50%",
-                            "&:hover": {
-                              backgroundColor: "rgba(0, 0, 0, 0.1)",
-                            },
-                          }}
-                        >
-                          <DeleteIconWithBackground />
-                        </Box>
-                      </Box>
-                    </Box>
+                          <Box display="flex" flexDirection="column" gap={1}>
+                            <Typography
+                              variant="h6"
+                              sx={{
+                                fontWeight: "600",
+                                color: "#6B7A99",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {reminder.title}
+                            </Typography>
 
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: "#666",
-                        whiteSpace: "pre-line",
-                        lineHeight: 1.6,
-                        fontSize: "14px",
-                      }}
-                    >
-                      {reminder.description}
-                    </Typography>
-                  </ListItem>
-                  {index <
-                    (calendarData[selectedDate.toISOString().split("T")[0]]
-                      ?.reminders?.length || 0) -
-                      1 && <Divider sx={{ my: 1 }} />}
-                </Box>
-              ))}
-            </List>
+                            <Box display="flex" flexDirection="row" gap={1}>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color: "#2AB3A3",
+                                  whiteSpace: "pre-line",
+                                  fontStyle: "italic",
+                                  fontSize: "14px",
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {reminder.reminderType}
+                              </Typography>
+
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color: "#6B7A99",
+                                  whiteSpace: "pre-line",
+                                  lineHeight: 1.6,
+                                  fontSize: "12px",
+                                }}
+                              >
+                                {reminder.time}
+                              </Typography>
+                            </Box>
+
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: "#6B7A99",
+                                whiteSpace: "pre-line",
+                                lineHeight: 1.6,
+                                fontSize: "14px",
+                              }}
+                            >
+                              {reminder.description}
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ display: "flex", gap: 1 }}>
+                            <Box
+                              onClick={() => handleEditReminder()}
+                              sx={{
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "50%",
+                                "&:hover": {
+                                  backgroundColor: "rgba(42, 179, 163, 0.1)",
+                                },
+                              }}
+                            >
+                              <QuickEditSvg />
+                            </Box>
+                            <Box
+                              onClick={() => handleDeleteReminder(reminder.id)}
+                              sx={{
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "50%",
+                                "&:hover": {
+                                  backgroundColor: "rgba(255, 95, 87, 0.1)",
+                                },
+                              }}
+                            >
+                              <DeleteIconWithBackground />
+                            </Box>
+                          </Box>
+                        </Box>
+                      </ListItem>
+                      {index <
+                        (calendarData[formatDateForInput(selectedDate)]
+                          ?.reminders?.length || 0) -
+                          1 && <Divider sx={{ my: 1 }} />}
+                    </Box>
+                  ))}
+                </List>
+              </Box>
+
+              {/* Symptoms Section */}
+              <Box>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    ...TitleWithIcon,
+                    fontWeight: "bold",
+                    color: "#333",
+                    mb: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <SymptomTooltipSvg /> Symptoms
+                </Typography>
+                <List sx={{ width: "100%" }}>
+                  {calendarData[
+                    formatDateForInput(selectedDate)
+                  ]?.symptoms?.map((symptom, index) => (
+                    // <Box key={symptom.id}>
+                    //   <ListItem
+                    //     sx={{
+                    //       backgroundColor: "#F8F9FA",
+                    //       borderRadius: "12px",
+                    //       mb: 2,
+                    //       flexDirection: "column",
+                    //       alignItems: "flex-start",
+                    //       p: 2,
+                    //     }}
+                    //   >
+                    //     <Box
+                    //       sx={{
+                    //         display: "flex",
+                    //         justifyContent: "space-between",
+                    //         alignItems: "center",
+                    //         width: "100%",
+                    //         mb: 1,
+                    //       }}
+                    //     >
+                    //       <Typography
+                    //         variant="h6"
+                    //         sx={{
+                    //           fontWeight: "bold",
+                    //           color: "#333",
+                    //           fontSize: "16px",
+                    //         }}
+                    //       >
+                    //         {symptom.title}
+                    //       </Typography>
+                    //       <Box sx={{ display: "flex", gap: 1 }}>
+                    //         <Box
+                    //           onClick={() => {
+                    //             setActiveTab("symptoms");
+                    //             setModalType("health-log");
+                    //             setIsModalOpen(true);
+                    //             setIsEditDrawerOpen(false);
+                    //           }}
+                    //           sx={{
+                    //             cursor: "pointer",
+                    //             display: "flex",
+                    //             alignItems: "center",
+                    //             justifyContent: "center",
+                    //             width: "32px",
+                    //             height: "32px",
+                    //             borderRadius: "50%",
+                    //             "&:hover": {
+                    //               backgroundColor: "rgba(42, 179, 163, 0.1)",
+                    //             },
+                    //           }}
+                    //         >
+                    //           <QuickEditSvg />
+                    //         </Box>
+                    //         <Box
+                    //           onClick={() => handleDeleteSymptom(symptom.id)}
+                    //           sx={{
+                    //             cursor: "pointer",
+                    //             display: "flex",
+                    //             alignItems: "center",
+                    //             justifyContent: "center",
+                    //             width: "32px",
+                    //             height: "32px",
+                    //             borderRadius: "50%",
+                    //             "&:hover": {
+                    //               backgroundColor: "rgba(255, 95, 87, 0.1)",
+                    //             },
+                    //           }}
+                    //         >
+                    //           <DeleteIconWithBackground />
+                    //         </Box>
+                    //       </Box>
+                    //     </Box>
+
+                    //     <Typography
+                    //       variant="body2"
+                    //       sx={{
+                    //         color: "#666",
+                    //         whiteSpace: "pre-line",
+                    //         lineHeight: 1.6,
+                    //         fontSize: "14px",
+                    //       }}
+                    //     >
+                    //       {symptom.description}
+                    //     </Typography>
+                    //   </ListItem>
+                    //   {index <
+                    //     (calendarData[formatDateForInput(selectedDate)]
+                    //       ?.symptoms?.length || 0) -
+                    //       1 && <Divider sx={{ my: 1 }} />}
+                    // </Box>
+                    <Box key={symptom.id}>
+                      <ListItem
+                        sx={{
+                          backgroundColor: "transparent",
+                          borderRadius: "12px",
+                          mb: 2,
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          p: 0,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            width: "100%",
+                            mb: 1,
+                          }}
+                        >
+                          <Box display="flex" flexDirection="column" gap={1}>
+                            <Typography
+                              variant="h6"
+                              sx={{
+                                fontWeight: "600",
+                                color: "#6B7A99",
+                                fontSize: "14px",
+                              }}
+                            >
+                              {symptom.title}
+                            </Typography>
+
+                            <Box>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color: "#2AB3A3",
+                                  whiteSpace: "pre-line",
+                                  fontStyle: "italic",
+                                  fontSize: "14px",
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {symptom.symptomType}
+                              </Typography>
+                            </Box>
+
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: "#6B7A99",
+                                whiteSpace: "pre-line",
+                                lineHeight: 1.6,
+                                fontSize: "14px",
+                              }}
+                            >
+                              {symptom.description}
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ display: "flex", gap: 1 }}>
+                            <Box
+                              onClick={() => {
+                                setActiveTab("symptoms");
+                                setModalType("health-log");
+                                setModalSelectedDate(selectedDate);
+                                setIsModalOpen(true);
+                                setIsEditDrawerOpen(false);
+                              }}
+                              sx={{
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "50%",
+                                "&:hover": {
+                                  backgroundColor: "rgba(42, 179, 163, 0.1)",
+                                },
+                              }}
+                            >
+                              <QuickEditSvg />
+                            </Box>
+                            <Box
+                              onClick={() => handleDeleteSymptom(symptom.id)}
+                              sx={{
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "50%",
+                                "&:hover": {
+                                  backgroundColor: "rgba(255, 95, 87, 0.1)",
+                                },
+                              }}
+                            >
+                              <DeleteIconWithBackground />
+                            </Box>
+                          </Box>
+                        </Box>
+                      </ListItem>
+                      {index <
+                        (calendarData[formatDateForInput(selectedDate)]
+                          ?.symptoms?.length || 0) -
+                          1 && <Divider sx={{ my: 1 }} />}
+                    </Box>
+                  ))}
+                </List>
+              </Box>
+            </Box>
           )}
         </Box>
       </Drawer>

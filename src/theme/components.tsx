@@ -73,4 +73,25 @@ export const components = {
       },
     },
   },
+
+  MuiPaper: {
+    styleOverrides: {
+      root: {
+        "& .MuiPickersCalendarHeader-labelContainer": {
+          fontSize: "14px !important",
+        },
+        "& .MuiButtonBase-root.MuiPickersDay-root": {
+          fontSize: "14px !important",
+        },
+
+        "& .MuiButtonBase-root.MuiPickersDay-root.Mui-selected": {
+          backgroundColor: "#2AB3A3 !important",
+        },
+
+        "& .MuiTypography-root.MuiDayCalendar-weekDayLabel": {
+          fontSize: "14px !important",
+        },
+      },
+    },
+  },
 };

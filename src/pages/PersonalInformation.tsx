@@ -70,8 +70,8 @@ export const PersonalInformation = () => {
           <Box
             sx={{
               position: "absolute",
-              top: isSmallScreen ? 40 : 21,
-              left: isSmallScreen ? 20 : -40,
+              top: isSmallScreen ? 40 : 20,
+              left: isSmallScreen ? 20 : 0,
               zIndex: 1000,
             }}
           >
@@ -441,7 +441,7 @@ export const PersonalInformation = () => {
               justifyContent: "center",
               mt: 4,
               position: isSmallScreen ? "sticky" : "relative",
-              bottom: isSmallScreen ? "-17px" : 0,
+              bottom: isSmallScreen ? "2px" : 0,
             }}
           >
             <Button

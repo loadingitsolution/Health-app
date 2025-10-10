@@ -1,5 +1,5 @@
-import { theme } from "../theme/theme";
 import { type SxProps, type Theme } from "@mui/material";
+import { theme } from "../theme/theme";
 
 export const loginButtonVia = {
   py: 1.5,
@@ -152,4 +152,36 @@ export const authCopyright = {
   fontSize: "14px",
   textAlign: "center",
   pt: 5,
+};
+
+export const tabsWrapper = {
+  mb: 2,
+  "& .MuiTabs-list": {
+    border: "1px solid #2AB3A399",
+    borderRadius: "12px",
+    padding: "2px",
+  },
+  "& .MuiTab-root": {
+    textTransform: "none",
+    fontWeight: 700,
+    fontSize: "13px",
+    minHeight: "38px",
+    color: "#2AB3A399",
+  },
+  "& .Mui-selected": {
+    backgroundColor: "#2AB3A3 !important",
+    color: "#FFF !important",
+    borderRadius: "12px",
+  },
+  "& .MuiTabs-indicator": {
+    display: "none",
+  },
+};
+
+export const TitleWithIcon = {
+  svg: {
+    path: {
+      fill: "#6B7A99",
+    },
+  },
 };
