@@ -393,3 +393,6 @@ export const ChatIcon = () => (
     />
   </svg>
 );
+
+// Export the empty drawer image
+export { default as EmptyDrawerImage } from "./Empty-drawer-image.png";

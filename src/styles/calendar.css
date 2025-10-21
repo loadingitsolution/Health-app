@@ -7,7 +7,6 @@
     font-family: inherit !important;
     width: 100% !important;
     max-width: 100% !important;
-    overflow: hidden !important;
 }
 
 .health-calendar .react-calendar__navigation {
@@ -46,7 +45,7 @@
 }
 
 .health-calendar .react-calendar__tile {
-    height: 122px !important;
+    height: 136px !important;
     /* width: 150px !important; */
     border: none !important;
     border-right: 1px solid #f5f6f7 !important;

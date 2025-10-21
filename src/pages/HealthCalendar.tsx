@@ -14,7 +14,9 @@ import {
   IconButton,
   List,
   ListItem,
+  MenuItem,
   Paper,
+  Select,
   Switch,
   Tab,
   Tabs,
@@ -31,6 +33,7 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import {
   DeleteIconWithBackground,
+  EmptyDrawerImage,
   QuickEditSvg,
   RemainderTooltipSvg,
   SymptomTooltipSvg,
@@ -64,6 +67,8 @@ export const HealthCalendar = () => {
   );
   const [selectedMoodTags, setSelectedMoodTags] = useState<string[]>([]);
   const [modalSelectedDate, setModalSelectedDate] = useState<Date | null>(null);
+  const [reminderType, setReminderType] = useState<string>("");
+  const [repeatRule, setRepeatRule] = useState<string>("");
   const [calendarData, setCalendarData] = useState<{
     [key: string]: {
       quickEdit?: {
@@ -90,6 +95,7 @@ export const HealthCalendar = () => {
     };
   }>({});
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [isEmptyStateDrawerOpen, setIsEmptyStateDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"reminders" | "symptoms">(
     "reminders"
   );
@@ -105,10 +111,12 @@ export const HealthCalendar = () => {
     setIsModalOpen(false);
     setModalType(null);
     setModalSelectedDate(null);
-    setSelectedDate(null);
+    // Keep selectedDate to maintain tile highlighting
     setPeriodSwitch(false);
     setSelectedFlowVolume(null);
     setSelectedMoodTags([]);
+    setReminderType("");
+    setRepeatRule("");
   };
 
   const handleModalSave = () => {
@@ -116,6 +124,14 @@ export const HealthCalendar = () => {
     if (dateToUse) {
       // Create date key in local timezone format (YYYY-MM-DD)
       const dateKey = formatDateForInput(dateToUse);
+
+      // Update calendar view to show the month of the selected date
+      setCurrentDate(
+        new Date(dateToUse.getFullYear(), dateToUse.getMonth(), 1)
+      );
+
+      // Keep the selected date highlighted
+      setSelectedDate(dateToUse);
 
       if (modalType === "quick-edit") {
         setCalendarData((prev) => ({
@@ -187,6 +203,8 @@ export const HealthCalendar = () => {
     setPeriodSwitch(false);
     setSelectedFlowVolume(null);
     setSelectedMoodTags([]);
+    setReminderType("");
+    setRepeatRule("");
   };
 
   const handleFlowVolumeSelect = (volume: string) => {
@@ -312,6 +330,34 @@ export const HealthCalendar = () => {
     setIsEditDrawerOpen(false);
   };
 
+  const handleEmptyStateDrawerClose = () => {
+    setIsEmptyStateDrawerOpen(false);
+  };
+
+  const handleAddManually = () => {
+    setModalSelectedDate(selectedDate);
+    setActiveTab("reminders");
+    setModalType("health-log");
+    setIsModalOpen(true);
+    setIsEmptyStateDrawerOpen(false);
+  };
+
+  const handleChatWithAI = () => {
+    setIsEmptyStateDrawerOpen(false);
+
+    // Auto-send message to chat
+    const messageText = `Hi Xing Ming 👋\nYou haven't added anything for ${selectedDate?.toLocaleDateString(
+      "en-US",
+      {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }
+    )} yet.\nWould you like to record a symptom or set a reminder for that day?`;
+
+    handleSendMessage(messageText);
+  };
+
   const handleEditReminder = () => {
     setActiveTab("reminders");
     setModalType("health-log");
@@ -348,6 +394,24 @@ export const HealthCalendar = () => {
     }
   };
 
+  const handleMarkReminderCompleted = (reminderId: string) => {
+    if (selectedDate) {
+      const dateKey = formatDateForInput(selectedDate);
+      setCalendarData((prev) => ({
+        ...prev,
+        [dateKey]: {
+          ...prev[dateKey],
+          reminders:
+            prev[dateKey]?.reminders?.map((reminder) =>
+              reminder.id === reminderId
+                ? { ...reminder, completed: !reminder.completed }
+                : reminder
+            ) || [],
+        },
+      }));
+    }
+  };
+
   const handlePreviousMonth = () => {
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
@@ -371,7 +435,10 @@ export const HealthCalendar = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleDateChange = (value: any) => {
     if (value instanceof Date) {
+      // Always set the selected date to the clicked date
       setSelectedDate(value);
+      console.log("Selected date:", value.toDateString()); // Debug log
+
       // Check if there's existing data for this date
       const dateKey = formatDateForInput(value);
       const dayData = calendarData[dateKey];
@@ -386,11 +453,8 @@ export const HealthCalendar = () => {
         // If data exists, open drawer
         handleEditDrawerOpen();
       } else {
-        // If no data exists, open modal for adding new data
-        setModalSelectedDate(value);
-        setActiveTab("reminders");
-        setModalType("health-log");
-        setIsModalOpen(true);
+        // If no data exists, open empty state drawer
+        setIsEmptyStateDrawerOpen(true);
       }
     }
   };
@@ -673,7 +737,7 @@ export const HealthCalendar = () => {
             </Box>
 
             {/* Bottom Actions - Hidden for now */}
-            <Box
+            {/* <Box
               sx={{
                 display: "flex",
                 justifyContent: "flex-start",
@@ -700,7 +764,7 @@ export const HealthCalendar = () => {
               >
                 Predict menstrual period
               </Button>
-            </Box>
+            </Box> */}
           </Box>
 
           {/* Chat Interface */}
@@ -1134,6 +1198,7 @@ export const HealthCalendar = () => {
                 onChange={(newValue) => {
                   setModalSelectedDate(newValue);
                 }}
+                disabled={modalSelectedDate !== null || selectedDate !== null}
                 slotProps={{
                   textField: {
                     fullWidth: true,
@@ -1155,8 +1220,41 @@ export const HealthCalendar = () => {
               </Tabs>
             </Box>
 
-            {/* Tab Content - Same content for both tabs */}
+            {/* Tab Content - Different content for each tab */}
             <Box>
+              {/* Reminder Type Select - Only for Reminders tab */}
+              {activeTab === "reminders" && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{ mb: 1, color: "#333", fontWeight: 600 }}
+                  >
+                    Type*
+                  </Typography>
+                  <Select
+                    value={reminderType}
+                    onChange={(e) => setReminderType(e.target.value)}
+                    fullWidth
+                    variant="outlined"
+                    displayEmpty
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "white",
+                        borderRadius: "8px",
+                      },
+                    }}
+                  >
+                    <MenuItem value="" disabled>
+                      <em>Select type</em>
+                    </MenuItem>
+                    <MenuItem value="Menstruation">Menstruation</MenuItem>
+                    <MenuItem value="Medication">Medication</MenuItem>
+                    <MenuItem value="Exercise">Exercise</MenuItem>
+                    <MenuItem value="Others">Others</MenuItem>
+                  </Select>
+                </Box>
+              )}
+
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Box>
@@ -1204,139 +1302,160 @@ export const HealthCalendar = () => {
                     />
                   </Box>
 
+                  {/* Repeat Rules - Only for Reminders tab */}
+                  {activeTab === "reminders" && (
+                    <Box
+                      mb={2}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        flexWrap: isSmallScreen ? "wrap" : "nowrap",
+                      }}
+                    >
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: "#333",
+                          fontWeight: 600,
+                          minWidth: "120px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        Repeat rules
+                      </Typography>
+                      <Select
+                        value={repeatRule}
+                        onChange={(e) => setRepeatRule(e.target.value)}
+                        fullWidth
+                        variant="outlined"
+                        displayEmpty
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "white",
+                            borderRadius: "8px",
+                          },
+                        }}
+                      >
+                        <MenuItem value="" disabled>
+                          <em>Select repeat rule</em>
+                        </MenuItem>
+                        <MenuItem value="Does not repeat">
+                          Does not repeat
+                        </MenuItem>
+                        <MenuItem value="Daily">Daily</MenuItem>
+                        <MenuItem value="Weekly on Monday">
+                          Weekly on Monday
+                        </MenuItem>
+                        <MenuItem value="Annually on October 13">
+                          Annually on October 13
+                        </MenuItem>
+                        <MenuItem value="Custom">Custom...</MenuItem>
+                      </Select>
+                    </Box>
+                  )}
+
+                  {/* Mark as completed - Only for Reminders tab */}
+                  {activeTab === "reminders" && (
+                    <Box>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
+                        <Checkbox
+                          sx={{
+                            color: "#2AB3A3",
+                            padding: 0,
+                            "&.Mui-checked": {
+                              color: "#2AB3A3",
+                            },
+                          }}
+                        />
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            color: "#333",
+                            fontWeight: 500,
+                            fontSize: "14px",
+                          }}
+                        >
+                          Mark as completed
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                </Grid>
+              </Grid>
+
+              {/* Period Tracking Section - Only show in Symptoms tab */}
+              {activeTab === "symptoms" && (
+                <Box pt={1}>
                   <Box
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    gap={2}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      mb: 3,
+                    }}
                   >
                     <Typography
                       variant="h6"
                       sx={{ color: "#333", fontWeight: 600 }}
                     >
-                      Repeat rules
+                      Did your period come today?
                     </Typography>
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <Switch
-                        color="primary"
-                        sx={{
-                          "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: "#2AB3A3",
-                          },
-                          "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                            {
-                              backgroundColor: "#2AB3A3",
-                            },
-                        }}
-                      />
-                    </Box>
-                  </Box>
-
-                  <Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Checkbox
-                        sx={{
+                    <Switch
+                      checked={periodSwitch}
+                      onChange={(e) => setPeriodSwitch(e.target.checked)}
+                      sx={{
+                        "& .MuiSwitch-switchBase.Mui-checked": {
                           color: "#2AB3A3",
-                          padding: 0,
-                          "&.Mui-checked": {
-                            color: "#2AB3A3",
-                          },
-                        }}
-                      />
-                      <Typography
-                        variant="body1"
-                        sx={{
-                          color: "#333",
-                          fontWeight: 500,
-                          fontSize: "14px",
-                        }}
-                      >
-                        Mark as completed
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-
-              {/* Period Tracking Section - After buttons */}
-              <Box pt={1}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: 3,
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    sx={{ color: "#333", fontWeight: 600 }}
-                  >
-                    Did your period come today?
-                  </Typography>
-                  <Switch
-                    checked={periodSwitch}
-                    onChange={(e) => setPeriodSwitch(e.target.checked)}
-                    sx={{
-                      "& .MuiSwitch-switchBase.Mui-checked": {
-                        color: "#2AB3A3",
-                      },
-                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                        {
-                          backgroundColor: "#2AB3A3",
                         },
-                    }}
-                  />
-                </Box>
+                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
+                          {
+                            backgroundColor: "#2AB3A3",
+                          },
+                      }}
+                    />
+                  </Box>
 
-                {/* Flow Volume Section */}
-                <Box
-                  sx={{
-                    mb: 3,
-                    opacity: periodSwitch ? 1 : 0.5,
-                    pointerEvents: periodSwitch ? "auto" : "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: isSmallScreen ? "wrap" : "nowrap",
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    sx={{ mb: 2, color: "#333", fontWeight: 600 }}
-                  >
-                    Flow Volume:
-                  </Typography>
+                  {/* Flow Volume Section */}
                   <Box
                     sx={{
+                      mb: 3,
+                      opacity: periodSwitch ? 1 : 0.5,
+                      pointerEvents: periodSwitch ? "auto" : "none",
                       display: "flex",
-                      gap: 1,
-                      flexWrap: "wrap",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: isSmallScreen ? "wrap" : "nowrap",
                     }}
                   >
-                    {[
-                      { name: "Light", color: "#4A90E2" },
-                      { name: "Medium", color: "#F4C542" },
-                      { name: "High", color: "#FF6F61" },
-                    ].map((volume) => (
-                      <Button
-                        key={volume.name}
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleFlowVolumeSelect(volume.name)}
-                        sx={{
-                          borderRadius: "20px",
-                          textTransform: "none",
-                          borderColor: volume.color,
-                          color:
-                            selectedFlowVolume === volume.name
-                              ? "white"
-                              : volume.color,
-                          backgroundColor:
-                            selectedFlowVolume === volume.name
-                              ? volume.color
-                              : "white",
-                          "&:hover": {
+                    <Typography
+                      variant="h6"
+                      sx={{ mb: 2, color: "#333", fontWeight: 600 }}
+                    >
+                      Flow Volume:
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 1,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {[
+                        { name: "Light", color: "#4A90E2" },
+                        { name: "Medium", color: "#F4C542" },
+                        { name: "High", color: "#FF6F61" },
+                      ].map((volume) => (
+                        <Button
+                          key={volume.name}
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleFlowVolumeSelect(volume.name)}
+                          sx={{
+                            borderRadius: "20px",
+                            textTransform: "none",
                             borderColor: volume.color,
                             color:
                               selectedFlowVolume === volume.name
@@ -1345,65 +1464,67 @@ export const HealthCalendar = () => {
                             backgroundColor:
                               selectedFlowVolume === volume.name
                                 ? volume.color
-                                : `${volume.color}20`,
-                          },
-                          minWidth: "80px",
-                        }}
-                      >
-                        {volume.name}
-                      </Button>
-                    ))}
+                                : "white",
+                            "&:hover": {
+                              borderColor: volume.color,
+                              color:
+                                selectedFlowVolume === volume.name
+                                  ? "white"
+                                  : volume.color,
+                              backgroundColor:
+                                selectedFlowVolume === volume.name
+                                  ? volume.color
+                                  : `${volume.color}20`,
+                            },
+                            minWidth: "80px",
+                          }}
+                        >
+                          {volume.name}
+                        </Button>
+                      ))}
+                    </Box>
                   </Box>
-                </Box>
 
-                {/* Mood Tags Section */}
-                <Box
-                  sx={{
-                    mb: 3,
-                    opacity: periodSwitch ? 1 : 0.5,
-                    pointerEvents: periodSwitch ? "auto" : "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: isSmallScreen ? "wrap" : "nowrap",
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    sx={{ mb: 2, color: "#333", fontWeight: 600 }}
-                  >
-                    Mood Tags:
-                  </Typography>
+                  {/* Mood Tags Section */}
                   <Box
                     sx={{
+                      mb: 3,
+                      opacity: periodSwitch ? 1 : 0.5,
+                      pointerEvents: periodSwitch ? "auto" : "none",
                       display: "flex",
-                      gap: 1,
-                      flexWrap: "wrap",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: isSmallScreen ? "wrap" : "nowrap",
                     }}
                   >
-                    {[
-                      { emoji: "😊", text: "Happy", color: "#2AB3A3" },
-                      { emoji: "🧘‍♂️", text: "Calm", color: "#8DC63F" },
-                      { emoji: "😟", text: "Anxious", color: "#4A90E2" },
-                      { emoji: "😠", text: "Irritable", color: "#F4C542" },
-                      { emoji: "😔", text: "Low", color: "#FF6F61" },
-                    ].map((mood) => (
-                      <Button
-                        key={mood.text}
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleMoodTagToggle(mood.text)}
-                        sx={{
-                          borderRadius: "20px",
-                          textTransform: "none",
-                          borderColor: mood.color,
-                          color: selectedMoodTags.includes(mood.text)
-                            ? "white"
-                            : mood.color,
-                          backgroundColor: selectedMoodTags.includes(mood.text)
-                            ? mood.color
-                            : "white",
-                          "&:hover": {
+                    <Typography
+                      variant="h6"
+                      sx={{ mb: 2, color: "#333", fontWeight: 600 }}
+                    >
+                      Mood Tags:
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 1,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {[
+                        { emoji: "😊", text: "Happy", color: "#2AB3A3" },
+                        { emoji: "🧘‍♂️", text: "Calm", color: "#8DC63F" },
+                        { emoji: "😟", text: "Anxious", color: "#4A90E2" },
+                        { emoji: "😠", text: "Irritable", color: "#F4C542" },
+                        { emoji: "😔", text: "Low", color: "#FF6F61" },
+                      ].map((mood) => (
+                        <Button
+                          key={mood.text}
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleMoodTagToggle(mood.text)}
+                          sx={{
+                            borderRadius: "20px",
+                            textTransform: "none",
                             borderColor: mood.color,
                             color: selectedMoodTags.includes(mood.text)
                               ? "white"
@@ -1412,18 +1533,29 @@ export const HealthCalendar = () => {
                               mood.text
                             )
                               ? mood.color
-                              : `${mood.color}20`,
-                          },
-                          minWidth: "100px",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {mood.emoji} {mood.text}
-                      </Button>
-                    ))}
+                              : "white",
+                            "&:hover": {
+                              borderColor: mood.color,
+                              color: selectedMoodTags.includes(mood.text)
+                                ? "white"
+                                : mood.color,
+                              backgroundColor: selectedMoodTags.includes(
+                                mood.text
+                              )
+                                ? mood.color
+                                : `${mood.color}20`,
+                            },
+                            minWidth: "100px",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {mood.emoji} {mood.text}
+                        </Button>
+                      ))}
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
+              )}
             </Box>
           </Box>
         </CustomModal>
@@ -1436,7 +1568,7 @@ export const HealthCalendar = () => {
         onClose={handleEditDrawerClose}
         PaperProps={{
           sx: {
-            width: isSmallScreen ? "100%" : 500,
+            width: isSmallScreen ? "100%" : 600,
             backgroundColor: "white",
           },
         }}
@@ -1563,7 +1695,36 @@ export const HealthCalendar = () => {
                             </Typography>
                           </Box>
 
-                          <Box sx={{ display: "flex", gap: 1 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              gap: 1,
+                              alignItems: "center",
+                            }}
+                          >
+                            {/* Mark as completed button */}
+                            <Button
+                              onClick={() =>
+                                handleMarkReminderCompleted(reminder.id)
+                              }
+                              sx={{
+                                backgroundColor: "#6B7A99",
+                                fontSize: "12px",
+                                color: "#FFF",
+                                fontWeight: 400,
+                                textTransform: "none",
+                                borderRadius: "4px",
+                                px: 2,
+                                py: 0.5,
+                                minWidth: "auto",
+                                height: "28px",
+                                "&:hover": {
+                                  backgroundColor: "#5a6b7a",
+                                },
+                              }}
+                            >
+                              Mark as completed
+                            </Button>
                             <Box
                               onClick={() => handleEditReminder()}
                               sx={{
@@ -1834,6 +1995,146 @@ export const HealthCalendar = () => {
               </Box>
             </Box>
           )}
+        </Box>
+      </Drawer>
+
+      {/* Empty State Drawer */}
+      <Drawer
+        anchor="right"
+        open={isEmptyStateDrawerOpen}
+        onClose={handleEmptyStateDrawerClose}
+        PaperProps={{
+          sx: {
+            width: isSmallScreen ? "100%" : 600,
+            backgroundColor: "white",
+          },
+        }}
+      >
+        <Box sx={{ p: 3 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              pb: 3,
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: "bold",
+                color: "#6B7A99",
+              }}
+            >
+              {selectedDate
+                ? selectedDate.toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "Select a date"}
+            </Typography>
+
+            <IconButton onClick={handleEmptyStateDrawerClose}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "300px",
+              textAlign: "center",
+              gap: 3,
+            }}
+          >
+            <Box
+              sx={{
+                mb: 2,
+              }}
+            >
+              <img src={EmptyDrawerImage} alt="Empty drawer" />
+            </Box>
+
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: "bold",
+                color: "#6B7A99",
+                fontSize: "18px",
+                mb: 1,
+              }}
+            >
+              No records yet for today.
+            </Typography>
+
+            <Typography
+              variant="body1"
+              sx={{
+                color: "#6B7A99",
+                fontSize: "14px",
+                maxWidth: "400px",
+                mb: 3,
+              }}
+            >
+              Start by adding your symptoms or reminders to keep your health
+              insights accurate.
+            </Typography>
+
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                width: "100%",
+                maxWidth: "400px",
+              }}
+            >
+              <Button
+                fullWidth
+                onClick={handleAddManually}
+                sx={{
+                  backgroundColor: "#2AB3A3",
+                  color: "white",
+                  borderRadius: "20px",
+                  py: 1.5,
+                  textTransform: "none",
+                  fontWeight: "bold",
+                  "&:hover": {
+                    backgroundColor: "#1e8a7a",
+                  },
+                }}
+              >
+                Add manually
+              </Button>
+
+              <Button
+                fullWidth
+                onClick={handleChatWithAI}
+                variant="outlined"
+                sx={{
+                  borderColor: "#2AB3A3",
+                  color: "#2AB3A3",
+                  backgroundColor: "transparent",
+                  borderRadius: "20px",
+                  py: 1.5,
+                  textTransform: "none",
+                  fontWeight: "bold",
+                  border: "2px solid #2AB3A3",
+                  "&:hover": {
+                    borderColor: "#1e8a7a",
+                    color: "#1e8a7a",
+                    backgroundColor: "rgba(42, 179, 163, 0.04)",
+                    border: "2px solid #1e8a7a",
+                  },
+                }}
+              >
+                Chat with AI
+              </Button>
+            </Box>
+          </Box>
         </Box>
       </Drawer>
     </MainLayout>
