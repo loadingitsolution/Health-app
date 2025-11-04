@@ -37,7 +37,8 @@
 
 .health-calendar .react-calendar__month-view__days {
     border: 1px solid #f5f6f7 !important;
-    height: calc(100dvh - 315px);
+    height: calc(100dvh - 240px);
+    overflow: auto !important;
 }
 
 .health-calendar .react-calendar__tile abbr {

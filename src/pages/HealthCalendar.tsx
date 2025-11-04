@@ -771,7 +771,7 @@ export const HealthCalendar = () => {
           {!isSmallScreen && (
             <Box
               sx={{
-                width: { xs: "100%", sm: "350px", md: "400px", lg: "400px" },
+                width: { xs: "100%", sm: "250px", md: "400px", lg: "400px" },
                 maxWidth: "400px",
                 backgroundColor: "transparent",
                 display: "flex",
