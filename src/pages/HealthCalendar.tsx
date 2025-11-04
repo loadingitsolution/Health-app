@@ -1110,8 +1110,6 @@ export const HealthCalendar = () => {
           <Box
             sx={{
               mb: 3,
-              opacity: periodSwitch ? 1 : 0.5,
-              pointerEvents: periodSwitch ? "auto" : "none",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
@@ -1489,8 +1487,6 @@ export const HealthCalendar = () => {
                   <Box
                     sx={{
                       mb: 3,
-                      opacity: periodSwitch ? 1 : 0.5,
-                      pointerEvents: periodSwitch ? "auto" : "none",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
